@@ -1,0 +1,7 @@
+{
+  "name": "HR Pro Event Suite",
+  "description": "A comprehensive HR tool for participant management, lucky draws with animations, automatic team grouping, and AI-powered event image editing.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
