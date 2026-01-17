@@ -13,38 +13,66 @@ const GroupingTool: React.FC<Props> = ({ participants }) => {
 
   const handleGroup = () => {
     if (participants.length === 0) return;
-    
+
     // Shuffle
     const shuffled = [...participants].sort(() => Math.random() - 0.5);
     const newGroups: GroupResult[] = [];
-    
+
     for (let i = 0; i < shuffled.length; i += groupSize) {
       newGroups.push({
         groupName: `第 ${Math.floor(i / groupSize) + 1} 組`,
         members: shuffled.slice(i, i + groupSize),
       });
     }
-    
+
     setGroups(newGroups);
   };
 
   const downloadGroupingCSV = () => {
     if (groups.length === 0) return;
-    
-    const header = "組別,姓名\n";
-    const csvContent = groups.flatMap(group => 
-      group.members.map(member => `${group.groupName},${member.name}`)
+
+    // Header with consistent columns
+    const header = "組別,姓名,部門,Email\n";
+
+    const csvContent = groups.flatMap(group =>
+      group.members.map(member => {
+        // Escape check for CSV fields
+        const escape = (text: string = '') => {
+          const stringValue = String(text);
+          if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        };
+
+        return [
+          escape(group.groupName),
+          escape(member.name),
+          escape(member.department),
+          escape(member.email)
+        ].join(',');
+      })
     ).join("\n");
-    
-    const blob = new Blob(["\ufeff" + header + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    const blob = new Blob(["\ufeff" + header + csvContent], { type: 'text/csv;charset=utf-8' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `分組結果_${new Date().toLocaleDateString()}.csv`);
+    link.href = url;
+
+    // Use ISO date format to avoid invalid filename characters like slashes
+    const dateStr = new Date().toISOString().split('T')[0];
+    // Use ASCII filename to ensure compatibility across all browsers/systems
+    link.download = `grouping_result_${dateStr}.csv`;
+
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+
+    // cleanup with a small delay to ensure download starts
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
   };
 
   return (
@@ -71,10 +99,10 @@ const GroupingTool: React.FC<Props> = ({ participants }) => {
             自動分組
           </button>
         </div>
-        
+
         <div className="flex items-center gap-6">
           <div className="text-sm text-slate-500 hidden sm:block">
-            總人數：<span className="font-bold text-slate-800">{participants.length}</span> | 
+            總人數：<span className="font-bold text-slate-800">{participants.length}</span> |
             預計組數：<span className="font-bold text-slate-800">{Math.ceil(participants.length / groupSize)}</span>
           </div>
           {groups.length > 0 && (

@@ -9,7 +9,7 @@ interface Props {
 }
 
 const SAMPLE_NAMES = [
-  "王小明", "李大華", "張美美", "陳志明", "林雅婷", 
+  "王小明", "李大華", "張美美", "陳志明", "林雅婷",
   "黃國華", "吳淑珍", "周杰倫", "蔡依林", "張學友",
   "王小明", "李大華" // 故意放入重複项以便示範
 ];
@@ -84,25 +84,48 @@ const ParticipantManager: React.FC<Props> = ({ participants, onUpdate }) => {
     onUpdate(uniqueParticipants);
   };
 
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
   const clearAll = () => {
-    if (confirm('確定要清除所有名單嗎？')) {
+    if (showClearConfirm) {
       onUpdate([]);
+      setShowClearConfirm(false);
+    } else {
+      setShowClearConfirm(true);
+      setTimeout(() => setShowClearConfirm(false), 3000); // Reset after 3 seconds
     }
   };
 
   const downloadCSV = () => {
-    if (participants.length === 0) return;
-    const header = "姓名\n";
-    const csvContent = participants.map(p => p.name).join("\n");
-    const blob = new Blob(["\ufeff" + header + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `參與者名單_${new Date().toLocaleDateString()}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (participants.length === 0) {
+      alert("名單為空，無法匯出！");
+      return;
+    }
+
+    try {
+      const header = "姓名,編號\n";
+      const csvContent = participants.map(p => `${p.name},${p.id}`).join("\n");
+
+      // Use BOM for Excel compatibility with UTF-8
+      const blob = new Blob(["\ufeff" + header + csvContent], { type: 'text/csv;charset=utf-8' });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // Date format for filename
+      const date = new Date();
+      const dateStr = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+      link.download = `Participant_List_${dateStr}.csv`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("匯出失敗，請檢查瀏覽器設定");
+    }
   };
 
   return (
@@ -121,7 +144,7 @@ const ParticipantManager: React.FC<Props> = ({ participants, onUpdate }) => {
             產生範例名單
           </button>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
             <label className="block text-sm font-medium text-slate-700">批次貼上姓名 (每行一個或逗號隔開)</label>
@@ -162,7 +185,7 @@ const ParticipantManager: React.FC<Props> = ({ participants, onUpdate }) => {
           </div>
           <div className="flex items-center gap-3">
             {participants.length > 0 && (
-              <button 
+              <button
                 onClick={downloadCSV}
                 className="text-xs text-slate-600 hover:text-indigo-600 font-bold flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm transition-all"
               >
@@ -170,22 +193,26 @@ const ParticipantManager: React.FC<Props> = ({ participants, onUpdate }) => {
               </button>
             )}
             {hasDuplicates && (
-              <button 
+              <button
                 onClick={removeDuplicates}
                 className="text-xs text-amber-600 hover:text-amber-700 font-bold flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100"
               >
                 <UserCheck className="w-3.5 h-3.5" /> 移除重複姓名
               </button>
             )}
-            <button 
+            <button
               onClick={clearAll}
-              className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1"
+              className={`text-xs font-medium flex items-center gap-1 transition-all px-2 py-1 rounded-lg ${showClearConfirm
+                ? 'bg-red-500 text-white hover:bg-red-600 shadow-sm'
+                : 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                }`}
             >
-              <Trash2 className="w-4 h-4" /> 全部清除
+              <Trash2 className="w-4 h-4" />
+              {showClearConfirm ? '確定清除？' : '全部清除'}
             </button>
           </div>
         </div>
-        
+
         <div className="max-h-[400px] overflow-y-auto">
           {participants.length === 0 ? (
             <div className="p-12 text-center text-slate-400">
@@ -196,13 +223,12 @@ const ParticipantManager: React.FC<Props> = ({ participants, onUpdate }) => {
               {participants.map((p) => {
                 const isDuplicate = nameCounts[p.name] > 1;
                 return (
-                  <div 
-                    key={p.id} 
-                    className={`flex justify-between items-center p-3 rounded-lg group transition-colors ${
-                      isDuplicate 
-                      ? 'bg-amber-50 border border-amber-100 text-amber-800' 
+                  <div
+                    key={p.id}
+                    className={`flex justify-between items-center p-3 rounded-lg group transition-colors ${isDuplicate
+                      ? 'bg-amber-50 border border-amber-100 text-amber-800'
                       : 'bg-slate-50 hover:bg-indigo-50 border border-transparent'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{p.name}</span>
@@ -213,7 +239,7 @@ const ParticipantManager: React.FC<Props> = ({ participants, onUpdate }) => {
                         </span>
                       )}
                     </div>
-                    <button 
+                    <button
                       onClick={() => removeParticipant(p.id)}
                       className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all"
                     >
